@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git分支检查工具</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='3' cy='3' r='2' fill='%23ffffff'/%3E%3Ccircle cx='13' cy='3' r='2' fill='%23ffffff'/%3E%3Ccircle cx='8' cy='13' r='2' fill='%23ffffff'/%3E%3Cpath d='M5 3 L11 3 M8 5 L8 11' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round'/%3E%3Crect width='16' height='16' fill='%233b82f6' rx='2'/%3E%3Ccircle cx='3' cy='3' r='1.5' fill='%23ffffff'/%3E%3Ccircle cx='13' cy='3' r='1.5' fill='%23ffffff'/%3E%3Ccircle cx='8' cy='13' r='1.5' fill='%23ffffff'/%3E%3Cpath d='M4.5 3 L11.5 3 M8 4.5 L8 11.5' stroke='%23ffffff' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%233b82f6' rx='2'/%3E%3Ccircle cx='3' cy='3' r='1.5' fill='%23ffffff'/%3E%3Ccircle cx='13' cy='3' r='1.5' fill='%23ffffff'/%3E%3Ccircle cx='8' cy='13' r='1.5' fill='%23ffffff'/%3E%3Cpath d='M4.5 3 L11.5 3 M8 4.5 L8 11.5' stroke='%23ffffff' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E">
+    <!-- 引入现代化字体和图标库 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 95vw;
+            margin: 0 auto;
+            padding: 8px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .header p {
+            font-size: 0.875rem;
+            color: #64748b;
+            font-weight: 400;
+            margin: 0;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            height: calc(100vh - 100px);
+        }
+
+        .left-column, .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 100%;
+        }
+
+        .content .section {
+            height: fit-content;
+            overflow: auto;
+        }
+
+        .section.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+
+        .section h2 {
+            color: #1e293b;
+            margin-bottom: 12px;
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .form-group {
+            margin-bottom: 8px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.8rem;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            background: white;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-check {
+            background: #10b981;
+        }
+
+        .btn-check:hover {
+            background: #059669;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn:disabled {
+            background: #9ca3af !important;
+            color: #6b7280 !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+            box-shadow: none !important;
+            opacity: 0.6;
+        }
+
+        .btn:disabled:hover {
+            background: #9ca3af !important;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .message {
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin: 12px 0;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.875rem;
+        }
+
+        .message.success {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .message.error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .table-container {
+            flex: 1;
+            overflow: auto;
+            border-radius: 8px;
+            margin-top: 12px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            min-height: 200px;
+            max-height: calc(100vh - 500px);
+        }
+
+        .branches-table, .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 12px;
+            table-layout: fixed;
+        }
+
+        .results-table tbody {
+            transition: opacity 0.2s ease;
+        }
+
+        .branches-table th, .branches-table td,
+        .results-table th, .results-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+            word-wrap: break-word;
+            word-break: break-all;
+            white-space: normal;
+            line-height: 1.4;
+        }
+
+        .branches-table th, .results-table th {
+            background: #f8fafc;
+            color: #374151;
+            font-weight: 600;
+            font-size: 11px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .branches-table tr, .results-table tr {
+            min-height: 40px;
+        }
+
+        .branches-table tr:hover, .results-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .branches-table th:nth-child(1), .branches-table td:nth-child(1) {
+            width: 8%;
+            text-align: center;
+        }
+
+        .branches-table th:nth-child(2), .branches-table td:nth-child(2) {
+            width: 20%;
+        }
+
+        .branches-table th:nth-child(3), .branches-table td:nth-child(3) {
+            width: 10%;
+        }
+
+        .branches-table th:nth-child(4), .branches-table td:nth-child(4) {
+            width: 15%;
+        }
+
+        .branches-table th:nth-child(5), .branches-table td:nth-child(5) {
+            width: 12%;
+        }
+
+        .branches-table th:nth-child(6), .branches-table td:nth-child(6) {
+            width: 20%;
+            white-space: normal;
+            word-break: break-word;
+            min-width: 120px;
+        }
+
+        .branches-table th:nth-child(7), .branches-table td:nth-child(7) {
+            width: 18%;
+        }
+
+        /* 检查结果表格列宽设置 */
+        .results-table th:nth-child(1), .results-table td:nth-child(1) {
+            width: 30%;  /* 分支名称列 */
+        }
+
+        .results-table th:nth-child(2), .results-table td:nth-child(2) {
+            width: 12%;  /* 合并状态列 */
+        }
+
+        .results-table th:nth-child(3), .results-table td:nth-child(3) {
+            width: 16%;  /* 合并日期列 */
+        }
+
+        .results-table th:nth-child(4), .results-table td:nth-child(4) {
+            width: 22%;  /* 合并提交列 */
+        }
+
+        .results-table th:nth-child(5), .results-table td:nth-child(5) {
+            width: 20%;  /* 提交人列 */
+            max-width: 200px;
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+
+        .status-merged {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .status-not-merged {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .merge-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .merge-link:hover {
+            color: #1d4ed8;
+            background: #eff6ff;
+            text-decoration: none;
+        }
+
+        .commit-hash {
+            color: #6b7280;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            font-size: 0.875rem;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 32px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .info-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .info-box h4 {
+            color: #1e293b;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .info-box ul {
+            margin: 0;
+            padding-left: 16px;
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+
+        .info-box p {
+            margin: 6px 0 0 0;
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+
+        /* 过滤器样式 */
+        .filter-container {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+
+        .filter-container:hover {
+            border-color: #cbd5e1;
+            background: #f1f5f9;
+        }
+
+        .filter-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            min-width: 80px;
+        }
+
+        .filter-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+
+        .filter-option:hover {
+            background: #e2e8f0;
+        }
+
+        .filter-option input[type="radio"] {
+            margin: 0;
+            accent-color: #3b82f6;
+        }
+
+        .filter-option input[type="radio"]:checked + span {
+            color: #1e40af;
+            font-weight: 600;
+        }
+
+        .filter-option.active {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 1.4em;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-code-branch"></i> Git分支检查工具</h1>
+        </div>
+        
+        <div class="content">
+            <!-- 左列 -->
+            <div class="left-column">
+                <!-- 仓库连接部分 -->
+                <div class="section">
+                    <h2><i class="fas fa-folder-open"></i> 仓库连接</h2>
+                    <div class="form-group">
+                        <label for="repoSelect">选择预设仓库：</label>
+                        <select id="repoSelect" onchange="onRepoSelectChange()">
+                            <option value="">-- 选择预设仓库 --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="repoInput">或手动输入仓库路径或URL:</label>
+                        <input type="text" id="repoInput" placeholder="支持本地路径 (D:\code\myproject) 或SSH URL (git@github.com:user/repo.git)">
+                    </div>
+                    <button class="btn" id="connectBtn" onclick="connectRepo()">
+                        <i class="fas fa-link"></i> 连接仓库
+                    </button>
+                    
+                    <div class="loading" id="connectLoading">
+                        <div class="spinner"></div>
+                        <p>正在连接仓库...</p>
+                    </div>
+                    
+                    <div id="connectMessage"></div>
+                </div>
+
+                <!-- 分支列表部分 -->
+                <div class="section" style="flex: 1; display: flex; flex-direction: column;">
+                    <div id="branchesSection" style="display: none; flex: 1; flex-direction: column;">
+                        <h2><i class="fas fa-list"></i> 分支列表</h2>
+                        <div id="branchesContainer" style="flex: 1; display: flex; flex-direction: column;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右列 -->
+            <div class="right-column">
+                <!-- 分支合并检查部分 -->
+                <div class="section">
+                    <h2><i class="fas fa-search"></i> 分支合并检查</h2>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="keyword">分支关键字:</label>
+                            <input type="text" id="keyword" placeholder="例如: 0811">
+                        </div>
+                        <div class="form-group">
+                            <label for="targetBranch">目标分支:</label>
+                            <input type="text" id="targetBranch" placeholder="例如: master 或 main">
+                        </div>
+                    </div>
+                    <button class="btn btn-check" id="checkBtn" onclick="checkMerge()">
+                        <i class="fas fa-play"></i> 开始检查
+                    </button>
+                    
+                    <div class="loading" id="checkLoading">
+                        <div class="spinner"></div>
+                        <p>正在检查分支合并状态...</p>
+                    </div>
+                    
+                    <div id="checkMessage"></div>
+                </div>
+
+                <!-- 检查结果部分 -->
+                <div class="section" style="flex: 1; display: flex; flex-direction: column;">
+                    <div id="resultsContainer" style="flex: 1; display: flex; flex-direction: column;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function connectRepo() {
+            const repoInput = document.getElementById('repoInput').value.trim();
+            const messageDiv = document.getElementById('connectMessage');
+            
+            if (!repoInput) {
+                showMessage(messageDiv, '请输入仓库路径或URL', 'error');
+                return;
+            }
+        }
+        
+        function onRepoSelectChange() {
+            const repoSelect = document.getElementById('repoSelect');
+            const repoInput = document.getElementById('repoInput');
+            
+            if (repoSelect.value) {
+                repoInput.value = repoSelect.value;
+            }
+        }
+        
+        async function loadPresetRepos() {
+             try {
+                 const response = await fetch('/api/config');
+                 const data = await response.json();
+                 
+                 if (data.success) {
+                     const repoSelect = document.getElementById('repoSelect');
+                     data.repositories.forEach(repo => {
+                         const option = document.createElement('option');
+                         option.value = repo.url;
+                         option.textContent = `${repo.name} (${repo.type})`;
+                         repoSelect.appendChild(option);
+                     });
+                 }
+             } catch (error) {
+                 console.error('加载预设仓库失败:', error);
+             }
+         }
+        
+        // 页面加载时获取预设仓库
+         document.addEventListener('DOMContentLoaded', async function() {
+             await loadPresetRepos();
+         });
+        
+        async function connectRepo() {
+            const repoInput = document.getElementById('repoInput').value.trim();
+            const messageDiv = document.getElementById('connectMessage');
+            const loadingDiv = document.getElementById('connectLoading');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            if (!repoInput) {
+                showMessage(messageDiv, '请输入仓库路径或URL', 'error');
+                return;
+            }
+            
+            // 禁用按钮并显示转圈加载效果
+            connectBtn.disabled = true;
+            loadingDiv.classList.add('show');
+            messageDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ repo_input: repoInput })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    let message = data.message;
+                    if (data.local_path) {
+                        message += `<br><small>本地路径: ${data.local_path}</small>`;
+                    }
+                    showMessage(messageDiv, message, 'success');
+                    displayBranches(data.branches);
+                } else {
+                    showMessage(messageDiv, data.message, 'error');
+                    document.getElementById('branchesSection').style.display = 'none';
+                }
+            } catch (error) {
+                showMessage(messageDiv, '连接失败: ' + error.message, 'error');
+            } finally {
+                // 恢复按钮状态并隐藏加载效果
+                connectBtn.disabled = false;
+                loadingDiv.classList.remove('show');
+            }
+        }
+        
+        function displayBranches(branches) {
+            const container = document.getElementById('branchesContainer');
+            const section = document.getElementById('branchesSection');
+            
+            if (branches.length === 0) {
+                container.innerHTML = '<p>未找到分支信息</p>';
+                section.style.display = 'flex';
+                return;
+            }
+            
+            let html = `
+                <div class="table-container">
+                    <table class="branches-table">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>分支名称</th>
+                                <th>类型</th>
+                                <th>提交人</th>
+                                <th>最后提交</th>
+                                <th>提交消息</th>
+                                <th>最后提交时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            branches.forEach(branch => {
+                html += `
+                    <tr>
+                        <td><span style="background: #f0f0f0; padding: 2px 8px; border-radius: 12px; font-weight: bold;">${branch.index}</span></td>
+                        <td><strong>${branch.name}</strong></td>
+                        <td>${branch.type}</td>
+                        <td>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-weight: 600;">${branch.author_name}</span>
+                                <small style="color: #666; font-size: 0.85em;">${branch.author_email}</small>
+                            </div>
+                        </td>
+                        <td><code>${branch.last_commit}</code></td>
+                        <td title="${branch.commit_message}">
+                            <span style="font-style: italic; color: #555;">
+                                ${branch.commit_message}
+                            </span>
+                        </td>
+                        <td>${branch.last_commit_date}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+            section.style.display = 'flex';
+        }
+        
+        async function checkMerge() {
+            const repoInput = document.getElementById('repoInput').value.trim();
+            const keyword = document.getElementById('keyword').value.trim();
+            const targetBranch = document.getElementById('targetBranch').value.trim();
+            const messageDiv = document.getElementById('checkMessage');
+            const loadingDiv = document.getElementById('checkLoading');
+            const checkBtn = document.getElementById('checkBtn');
+            
+            if (!repoInput || !keyword || !targetBranch) {
+                showMessage(messageDiv, '请填写所有必要信息', 'error');
+                return;
+            }
+            
+            // 禁用按钮并显示加载效果
+            checkBtn.disabled = true;
+            loadingDiv.classList.add('show');
+            messageDiv.innerHTML = '';
+            document.getElementById('resultsContainer').innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/check_merge', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        repo_input: repoInput,
+                        keyword: keyword,
+                        target_branch: targetBranch
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResults(data.results, keyword, targetBranch);
+                } else {
+                    showMessage(messageDiv, data.message, 'error');
+                }
+            } catch (error) {
+                showMessage(messageDiv, '检查失败: ' + error.message, 'error');
+            } finally {
+                // 恢复按钮状态并隐藏加载效果
+                checkBtn.disabled = false;
+                loadingDiv.classList.remove('show');
+            }
+        }
+        
+        function displayResults(results, keyword, targetBranch) {
+            const container = document.getElementById('resultsContainer');
+            
+            if (results.length === 0) {
+                container.innerHTML = `<div class="message error">未找到包含关键字 "${keyword}" 的分支</div>`;
+                return;
+            }
+            
+            // 统计合并状态
+            const mergedCount = results.filter(r => r.is_merged).length;
+            const notMergedCount = results.length - mergedCount;
+            
+            let html = `
+                <h3 style="margin-top: 20px; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-chart-bar"></i> 检查结果
+                </h3>
+                <p style="margin-bottom: 15px; color: #64748b;">
+                    关键字: <strong>${keyword}</strong> | 目标分支: <strong>${targetBranch}</strong>
+                </p>
+                
+                <!-- 过滤器 -->
+                <div class="filter-container">
+                    <div class="filter-label">
+                        <i class="fas fa-filter" style="color: #64748b;"></i>
+                        <span>过滤状态:</span>
+                    </div>
+                    <div class="filter-options">
+                        <label class="filter-option">
+                            <input type="radio" name="statusFilter" value="all" checked onchange="filterResults()">
+                            <span>全部 (${results.length})</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="radio" name="statusFilter" value="merged" onchange="filterResults()">
+                            <span style="color: #059669;">已合并 (${mergedCount})</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="radio" name="statusFilter" value="not-merged" onchange="filterResults()">
+                            <span style="color: #dc2626;">未合并 (${notMergedCount})</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>分支名称</th>
+                                <th>合并状态</th>
+                                <th>合并日期</th>
+                                <th>合并提交</th>
+                                <th>提交人</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+            `;
+            
+            // 存储结果数据供过滤使用
+            window.currentResults = results;
+            
+            // 生成表格行
+            html += generateResultRows(results);
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        
+        function generateResultRows(results) {
+            let rowsHtml = '';
+            
+            results.forEach(result => {
+                const statusClass = result.is_merged ? 'status-merged' : 'status-not-merged';
+                const statusText = result.is_merged ? '<i class="fas fa-check-circle"></i> 已合并' : '<i class="fas fa-times-circle"></i> 未合并';
+                const mergeDate = result.merge_date || '-';
+                const mergeCommit = result.merge_commit || '-';
+                
+                // 生成合并提交的链接
+                let mergeCommitDisplay = '-';
+                if (mergeCommit !== '-') {
+                    if (result.mr_id && result.gitlab_url && result.project_path && result.platform_config) {
+                         // 如果有MR ID，根据平台配置生成MR链接
+                         const mrNumber = result.mr_id.replace(/[!#PR\s]/g, ''); // 提取纯数字
+                         const mergeRequestPath = result.platform_config.merge_request_path || '/-/merge_requests/';
+                         const mrUrl = `${result.gitlab_url}${result.project_path}${mergeRequestPath}${mrNumber}`;
+                         mergeCommitDisplay = `<a href="${mrUrl}" target="_blank" class="merge-link" title="点击查看合并请求">${result.mr_id}</a> <span class="commit-hash">(${result.commit_hash})</span>`;
+                     } else if (result.commit_hash && result.gitlab_url && result.project_path && result.platform_config) {
+                         // 如果只有commit hash，根据平台配置生成commit链接
+                         const commitPath = result.platform_config.commit_path || '/-/commit/';
+                         const commitUrl = `${result.gitlab_url}${result.project_path}${commitPath}${result.commit_hash}`;
+                         mergeCommitDisplay = `<a href="${commitUrl}" target="_blank" class="merge-link" title="点击查看提交详情"><code>${result.commit_hash}</code></a> <span class="commit-hash">(合并提交)</span>`;
+                     } else {
+                         // fallback到原始显示
+                         mergeCommitDisplay = `<code>${mergeCommit}</code>`;
+                     }
+                }
+                
+                rowsHtml += `
+                    <tr data-status="${result.is_merged ? 'merged' : 'not-merged'}">
+                        <td><strong title="${result.branch_name}">${result.branch_name}</strong></td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${mergeDate}</td>
+                        <td>${mergeCommitDisplay}</td>
+                        <td title="${result.author_name || '未知'} (${result.author_email || '未知'})">
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-weight: 600;">${result.author_name || '未知'}</span>
+                                <small style="color: #666; font-size: 0.85em;">${result.author_email || '未知'}</small>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            return rowsHtml;
+        }
+        
+        function filterResults() {
+            const selectedFilter = document.querySelector('input[name="statusFilter"]:checked').value;
+            const tableBody = document.getElementById('resultsTableBody');
+            
+            if (!window.currentResults || !tableBody) return;
+            
+            // 更新过滤器选项的视觉状态
+            document.querySelectorAll('.filter-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            document.querySelector('input[name="statusFilter"]:checked').closest('.filter-option').classList.add('active');
+            
+            let filteredResults = window.currentResults;
+            
+            if (selectedFilter === 'merged') {
+                filteredResults = window.currentResults.filter(r => r.is_merged);
+            } else if (selectedFilter === 'not-merged') {
+                filteredResults = window.currentResults.filter(r => !r.is_merged);
+            }
+            
+            // 添加过渡效果
+            tableBody.style.opacity = '0.5';
+            setTimeout(() => {
+                tableBody.innerHTML = generateResultRows(filteredResults);
+                tableBody.style.opacity = '1';
+                
+                // 显示过滤结果统计
+                const resultCount = filteredResults.length;
+                const totalCount = window.currentResults.length;
+                if (resultCount !== totalCount) {
+                    showFilterMessage(`显示 ${resultCount} 条结果，共 ${totalCount} 条`);
+                } else {
+                    hideFilterMessage();
+                }
+            }, 150);
+        }
+        
+        function showFilterMessage(message) {
+            let messageEl = document.getElementById('filterMessage');
+            if (!messageEl) {
+                messageEl = document.createElement('div');
+                messageEl.id = 'filterMessage';
+                messageEl.style.cssText = `
+                    margin-top: 8px;
+                    padding: 8px 12px;
+                    background: #eff6ff;
+                    color: #1e40af;
+                    border-radius: 6px;
+                    font-size: 0.875rem;
+                    border: 1px solid #bfdbfe;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                `;
+                document.querySelector('.filter-container').appendChild(messageEl);
+            }
+            messageEl.innerHTML = `<i class="fas fa-info-circle"></i> ${message}`;
+            messageEl.style.display = 'flex';
+        }
+        
+        function hideFilterMessage() {
+            const messageEl = document.getElementById('filterMessage');
+            if (messageEl) {
+                messageEl.style.display = 'none';
+            }
+        }
+        
+        function showMessage(element, message, type) {
+            const icon = type === 'success' ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-exclamation-circle"></i>';
+            element.innerHTML = `<div class="message ${type}">${icon} ${message}</div>`;
+        }
+        
+        // 回车键支持
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                if (document.activeElement.id === 'repoInput') {
+                    connectRepo();
+                } else if (['keyword', 'targetBranch'].includes(document.activeElement.id)) {
+                    checkMerge();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

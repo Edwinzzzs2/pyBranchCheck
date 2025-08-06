@@ -1,0 +1,32 @@
+{
+    "repositories": [
+        {
+            "name": "xlb_fss_web",
+            "url": "git@codeup.aliyun.com:5f9a23913a5188f27f3f344b/web/xlb_fss_web.git",
+            "type": "ssh",
+            "platform": "codeup.aliyun.com"
+        },
+        {
+            "name": "react-web",
+            "url": "git@codeup.aliyun.com:5f9a23913a5188f27f3f344b/web/react_web.git",
+            "type": "ssh",
+            "platform": "codeup.aliyun.com"
+        },
+        {
+            "name": "xlb_bms_web",
+            "url": "git@codeup.aliyun.com:5f9a23913a5188f27f3f344b/web/xlb_bms_web.git",
+            "type": "ssh",
+            "platform": "codeup.aliyun.com"
+        }
+    ],
+    "platforms": {
+        "codeup.aliyun.com": {
+            "name": "阿里云CodeUp",
+            "base_url": "https://codeup.aliyun.com",
+            "merge_request_path": "/change/",
+            "commit_path": "/commit/",
+            "ssh_prefix": "git@codeup.aliyun.com:",
+            "https_prefix": "https://codeup.aliyun.com/"
+        }
+    }
+}
