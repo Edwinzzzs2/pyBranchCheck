@@ -1,4 +1,35 @@
-# Git 分支检查工具
+
+# pyBranchCheck 安装说明
+======================
+
+📦 安装步骤:
+1. 将整个文件夹复制到您希望安装的位置（如：C:\pyBranchCheck）
+2. 确保已安装Git（https://git-scm.com/download/windows）
+3. 双击'启动pyBranchCheck.bat'或'pyBranchCheck.exe'启动程序
+
+📋 文件说明:
+- pyBranchCheck.exe: 主程序
+- 启动pyBranchCheck.bat: 启动脚本（推荐使用）
+- 使用说明.txt: 详细使用说明
+- config.json: 配置文件
+- templates/: 网页仓库拉取临时文件
+
+⚠️ 重要提醒:
+- 请勿删除任何文件，否则程序可能无法正常运行
+- 首次运行需要安装Git
+- 程序运行时会占用5000端口
+
+==================================================================
+# 打包exe
+```
+python -m PyInstaller --onefile --name=pyBranchCheck --add-data="templates;templates" --add-data="config.json;." --hidden-import=git --hidden-import=flask --hidden-import=webbrowser --hidden-import=threading --hidden-import=subprocess --hidden-import=pathlib app.py --clean
+
+
+python -m PyInstaller --onefile --name=pyBranchCheck --add-data="templates;templates" --add-data="config.json;." --hidden-import=flask --hidden-import=webbrowser --hidden-import=threading --hidden-import=subprocess --hidden-import=pathlib --hidden-import=tempfile --hidden-import=shutil --hidden-import=json --hidden-import=datetime --hidden-import=re --hidden-import=time app.py --clean 
+
+```
+==================================================================
+# Git 分支检查工具介绍
 
 一个简洁的 Web 应用，用于检查 Git 仓库中分支的合并状态，支持多种 Git 平台的智能链接跳转。
 

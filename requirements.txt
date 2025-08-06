@@ -1,3 +1,4 @@
 Flask==2.3.3
 GitPython==3.1.37
 Werkzeug==2.3.7
+psutil==5.9.5

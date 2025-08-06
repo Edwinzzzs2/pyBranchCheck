@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, jsonify
-import git
 import os
 import tempfile
 import shutil
@@ -7,23 +6,118 @@ import json
 from datetime import datetime
 import re
 
+# 延迟导入git模块，避免在没有Git环境时导入失败
+git = None
+
 # 设置全局编码
 import sys
-if sys.platform.startswith('win'):
-    os.environ['GIT_PYTHON_ENCODING'] = 'utf-8'
-    os.environ['PYTHONIOENCODING'] = 'utf-8'
+import webbrowser
+import threading
+import time
+import subprocess
+from pathlib import Path
+
+def setup_git_environment():
+    """设置Git环境变量，确保在没有Python环境的机器上也能运行"""
+    global git
+    
+    if sys.platform.startswith('win'):
+        os.environ['GIT_PYTHON_ENCODING'] = 'utf-8'
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+        
+        # 检查是否为打包后的exe运行
+        is_exe = getattr(sys, 'frozen', False)
+        if is_exe:
+            # 设置Git相关环境变量
+            os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
+            
+            # 尝试找到Git可执行文件
+            git_paths = [
+                r'C:\Program Files\Git\bin\git.exe',
+                r'C:\Program Files (x86)\Git\bin\git.exe',
+                r'C:\Git\bin\git.exe',
+                'git.exe'  # 如果Git在PATH中
+            ]
+            
+            git_found = False
+            for git_path in git_paths:
+                try:
+                    if os.path.exists(git_path) or git_path == 'git.exe':
+                        # 测试Git是否可用
+                        result = subprocess.run([git_path, '--version'], 
+                                               capture_output=True, text=True, timeout=5)
+                        if result.returncode == 0:
+                            if git_path != 'git.exe':
+                                # 将Git目录添加到PATH
+                                git_dir = str(Path(git_path).parent)
+                                current_path = os.environ.get('PATH', '')
+                                if git_dir not in current_path:
+                                    os.environ['PATH'] = f"{git_dir};{current_path}"
+                            git_found = True
+                            break
+                except Exception:
+                    continue
+            
+            if not git_found:
+                raise Exception("未找到Git，请确保已安装Git并添加到系统PATH中")
+    
+    # 尝试导入git模块
+    try:
+        import git as git_module
+        git = git_module
+        return True
+    except Exception as e:
+        raise Exception(f"Git模块导入失败: {str(e)}")
+
+# Git环境将在主函数中初始化
 
 app = Flask(__name__)
+
+def get_config_path():
+    """获取配置文件路径，优先使用外部配置文件"""
+    # 检查是否为打包后的exe运行
+    is_exe = getattr(sys, 'frozen', False)
+    
+    if is_exe:
+        # 打包后的exe，配置文件在exe同目录
+        exe_dir = os.path.dirname(sys.executable)
+        external_config = os.path.join(exe_dir, 'config.json')
+        
+        # 优先使用外部配置文件
+        if os.path.exists(external_config):
+            return external_config
+        
+        # 如果外部配置文件不存在，使用内置配置文件
+        internal_config = os.path.join(os.path.dirname(__file__), 'config.json')
+        return internal_config
+    else:
+        # 开发环境，使用项目目录下的配置文件
+        return os.path.join(os.path.dirname(__file__), 'config.json')
 
 def load_config():
     """加载配置文件"""
     try:
-        config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+        config_path = get_config_path()
         with open(config_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         print(f"加载配置文件失败: {e}")
-        return {"repositories": []}
+        return {"repositories": [], "platforms": {}}
+
+def save_config(config):
+    """保存配置文件"""
+    try:
+        config_path = get_config_path()
+        
+        # 确保目录存在
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=4)
+        return True
+    except Exception as e:
+        print(f"保存配置文件失败: {e}")
+        return False
 
 class GitBranchChecker:
     def __init__(self, repo_input):
@@ -542,13 +636,134 @@ def get_config():
         config = load_config()
         return jsonify({
             'success': True,
-            'repositories': config.get('repositories', [])
+            'repositories': config.get('repositories', []),
+            'platforms': config.get('platforms', {}),
+            'config_path': get_config_path()
         })
     except Exception as e:
         return jsonify({
             'success': False,
             'error': str(e)
         })
+
+@app.route('/api/config/save', methods=['POST'])
+def save_config_api():
+    """保存配置"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': '请求数据格式错误'})
+        
+        # 验证配置数据格式
+        if 'repositories' not in data or 'platforms' not in data:
+            return jsonify({'success': False, 'message': '配置数据格式错误'})
+        
+        success = save_config(data)
+        if success:
+            return jsonify({'success': True, 'message': '配置保存成功'})
+        else:
+            return jsonify({'success': False, 'message': '配置保存失败'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'保存失败: {str(e)}'})
+
+@app.route('/api/config/repository', methods=['POST'])
+def add_repository():
+    """添加仓库配置"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': '请求数据格式错误'})
+        
+        name = data.get('name', '').strip()
+        url = data.get('url', '').strip()
+        repo_type = data.get('type', 'ssh')
+        platform = data.get('platform', '')
+        
+        if not name or not url:
+            return jsonify({'success': False, 'message': '仓库名称和URL不能为空'})
+        
+        config = load_config()
+        
+        # 检查是否已存在相同名称或URL的仓库
+        for repo in config.get('repositories', []):
+            if repo.get('name') == name:
+                return jsonify({'success': False, 'message': f'仓库名称 "{name}" 已存在'})
+            if repo.get('url') == url:
+                return jsonify({'success': False, 'message': f'仓库URL已存在'})
+        
+        # 添加新仓库
+        new_repo = {
+            'name': name,
+            'url': url,
+            'type': repo_type,
+            'platform': platform
+        }
+        
+        if 'repositories' not in config:
+            config['repositories'] = []
+        config['repositories'].append(new_repo)
+        
+        success = save_config(config)
+        if success:
+            return jsonify({'success': True, 'message': '仓库添加成功', 'repository': new_repo})
+        else:
+            return jsonify({'success': False, 'message': '仓库添加失败'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'添加失败: {str(e)}'})
+
+@app.route('/api/config/repository/<int:index>', methods=['DELETE'])
+def delete_repository(index):
+    """删除仓库配置"""
+    try:
+        config = load_config()
+        repositories = config.get('repositories', [])
+        
+        if index < 0 or index >= len(repositories):
+            return jsonify({'success': False, 'message': '仓库索引无效'})
+        
+        deleted_repo = repositories.pop(index)
+        success = save_config(config)
+        
+        if success:
+            return jsonify({'success': True, 'message': f'仓库 "{deleted_repo.get("name", "")}" 删除成功'})
+        else:
+            return jsonify({'success': False, 'message': '仓库删除失败'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'})
+
+@app.route('/api/config/platform', methods=['POST'])
+def add_platform():
+    """添加平台配置"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': '请求数据格式错误'})
+        
+        platform_key = data.get('key', '').strip()
+        platform_config = data.get('config', {})
+        
+        if not platform_key:
+            return jsonify({'success': False, 'message': '平台标识不能为空'})
+        
+        required_fields = ['name', 'base_url', 'merge_request_path', 'commit_path', 'ssh_prefix', 'https_prefix']
+        for field in required_fields:
+            if field not in platform_config or not platform_config[field].strip():
+                return jsonify({'success': False, 'message': f'平台配置字段 "{field}" 不能为空'})
+        
+        config = load_config()
+        
+        if 'platforms' not in config:
+            config['platforms'] = {}
+        
+        config['platforms'][platform_key] = platform_config
+        
+        success = save_config(config)
+        if success:
+            return jsonify({'success': True, 'message': '平台配置添加成功'})
+        else:
+            return jsonify({'success': False, 'message': '平台配置添加失败'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'添加失败: {str(e)}'})
 
 @app.route('/api/connect', methods=['POST'])
 def connect_repo():
@@ -621,5 +836,129 @@ def check_merge():
             'message': f'检查失败: {str(e)}'
         })
 
+def open_browser(port=5000):
+    """延迟打开浏览器"""
+    time.sleep(1.5)  # 等待服务器启动
+    webbrowser.open(f'http://localhost:{port}')
+
+def find_available_port(start_port=5000, max_attempts=10):
+    """查找可用端口"""
+    import socket
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('127.0.0.1', port))
+                return port
+        except OSError:
+            continue
+    return None
+
+def close_existing_processes():
+    """关闭已存在的pyBranchCheck进程"""
+    try:
+        import psutil
+        current_pid = os.getpid()
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                if proc.info['name'] and 'pyBranchCheck' in proc.info['name']:
+                    if proc.info['pid'] != current_pid:
+                        proc.terminate()
+                        print(f"已关闭之前的进程: PID {proc.info['pid']}")
+                elif proc.info['cmdline']:
+                    cmdline = ' '.join(proc.info['cmdline'])
+                    if 'app.py' in cmdline and 'pyBranchCheck' in cmdline:
+                        if proc.info['pid'] != current_pid:
+                            proc.terminate()
+                            print(f"已关闭之前的进程: PID {proc.info['pid']}")
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+    except ImportError:
+        # 如果没有psutil，尝试使用系统命令
+        try:
+            if sys.platform.startswith('win'):
+                subprocess.run(['taskkill', '/f', '/im', 'pyBranchCheck.exe'], 
+                             capture_output=True, check=False)
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"关闭之前进程时出错: {e}")
+
+def ensure_config_file():
+    """确保当前目录存在config.json文件"""
+    current_dir = os.getcwd()
+    config_file = os.path.join(current_dir, 'config.json')
+    
+    if not os.path.exists(config_file):
+        # 从程序内置配置复制到当前目录
+        try:
+            internal_config = load_config()
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(internal_config, f, ensure_ascii=False, indent=2)
+            print(f"✅ 已在当前目录生成配置文件: {config_file}")
+        except Exception as e:
+            print(f"❌ 生成配置文件失败: {e}")
+    else:
+        print(f"✅ 配置文件已存在: {config_file}")
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # 检查是否为打包后的exe运行
+    is_exe = getattr(sys, 'frozen', False)
+    
+    if is_exe:
+        try:
+            # 打包后的exe模式
+            print("pyBranchCheck 正在启动...")
+            print("服务器启动后将自动打开浏览器")
+            print("如果浏览器没有自动打开，请手动访问: http://localhost:5000")
+            print("关闭此窗口将停止服务")
+            print("-" * 50)
+            
+            # 初始化Git环境
+            try:
+                setup_git_environment()
+                print("✅ Git环境初始化成功")
+                
+                # 显示Git版本信息
+                result = subprocess.run(['git', '--version'], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    print(f"Git版本: {result.stdout.strip()}")
+            except Exception as e:
+                print("\n❌ 错误: Git环境初始化失败")
+                print("\n解决方案:")
+                print("1. 请从以下地址下载并安装Git:")
+                print("   https://git-scm.com/download/windows")
+                print("2. 安装时请确保勾选'Add Git to PATH'选项")
+                print("3. 安装完成后重启电脑")
+                print("4. 重新运行本程序")
+                print("\n详细错误信息:", str(e))
+                print("\n按任意键退出...")
+                input()
+                sys.exit(1)
+            
+            # 在新线程中打开浏览器
+            threading.Thread(target=open_browser, daemon=True).start()
+            
+            # 生产模式运行
+            app.run(debug=False, host='127.0.0.1', port=5000)
+            
+        except KeyboardInterrupt:
+            print("\n程序已停止")
+        except Exception as e:
+            print(f"\n❌ 程序启动失败: {str(e)}")
+            print("\n可能的解决方案:")
+            print("1. 确保已安装Git")
+            print("2. 确保端口5000未被占用")
+            print("3. 以管理员身份运行程序")
+            print("\n按任意键退出...")
+            input()
+            sys.exit(1)
+    else:
+        # 开发模式 - 也需要初始化Git环境
+        try:
+            setup_git_environment()
+            print("Git环境初始化成功")
+        except Exception as e:
+            print(f"警告: Git环境初始化失败 - {e}")
+            print("某些功能可能无法正常工作")
+        
+        app.run(debug=True, host='0.0.0.0', port=5000)

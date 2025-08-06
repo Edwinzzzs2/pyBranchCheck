@@ -479,6 +479,148 @@
             border-color: #93c5fd;
         }
 
+        /* 标签页样式 */
+        .tab-navigation {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 24px;
+            background: white;
+        }
+        
+        .tab-btn {
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+        }
+        
+        .tab-btn:hover {
+            color: #3b82f6;
+        }
+        
+        .tab-btn.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        /* 配置管理样式 */
+        .form-section {
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .form-section h3 {
+            margin: 0 0 16px 0;
+            color: #1e293b;
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .config-info {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .config-info p {
+            margin: 0;
+            font-size: 0.875rem;
+            color: #1e40af;
+        }
+        
+        .config-list {
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+        
+        .config-item {
+            padding: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .config-item:last-child {
+            border-bottom: none;
+        }
+        
+        .config-item:hover {
+            background: #f8fafc;
+        }
+        
+        .config-item-info {
+            flex: 1;
+        }
+        
+        .config-item-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+        
+        .config-item-details {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        
+        .config-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
         @media (max-width: 768px) {
             .grid {
                 grid-template-columns: 1fr;
@@ -489,11 +631,22 @@
             }
             
             .content {
-                padding: 15px;
+                padding: 12px;
+                grid-template-columns: 1fr;
             }
             
             .section {
-                padding: 15px;
+                padding: 14px;
+                margin-bottom: 16px;
+            }
+            
+            .tab-btn {
+                font-size: 13px;
+                padding: 10px 16px;
+                gap: 6px;
+            }
+            
+            .tab-navigation {
                 margin-bottom: 20px;
             }
         }
@@ -505,12 +658,24 @@
             <h1><i class="fas fa-code-branch"></i> Git分支检查工具</h1>
         </div>
         
-        <div class="content">
-            <!-- 左列 -->
-            <div class="left-column">
-                <!-- 仓库连接部分 -->
-                <div class="section">
-                    <h2><i class="fas fa-folder-open"></i> 仓库连接</h2>
+        <!-- 标签页导航 -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" onclick="switchTab('main')">
+                <i class="fas fa-code-branch"></i> 分支检查
+            </button>
+            <button class="tab-btn" onclick="switchTab('config')">
+                <i class="fas fa-cog"></i> 配置管理
+            </button>
+        </div>
+        
+        <!-- 主功能标签页 -->
+        <div id="mainTab" class="tab-content active">
+            <div class="content">
+                <!-- 左列 -->
+                <div class="left-column">
+                    <!-- 仓库连接部分 -->
+                    <div class="section">
+                        <h2><i class="fas fa-folder-open"></i> 仓库连接</h2>
                     <div class="form-group">
                         <label for="repoSelect">选择预设仓库：</label>
                         <select id="repoSelect" onchange="onRepoSelectChange()">
@@ -575,17 +740,396 @@
                 </div>
             </div>
         </div>
+        </div>
+        
+        <!-- 配置管理标签页 -->
+        <div id="configTab" class="tab-content">
+            <div class="content">
+                <!-- 左列：仓库配置 -->
+                <div class="left-column">
+                    <div class="section">
+                        <h2><i class="fas fa-database"></i> 仓库配置</h2>
+                        <div class="config-info">
+                            <p><strong>配置文件路径：</strong><span id="configPath">加载中...</span></p>
+                        </div>
+                        
+                        <!-- 添加仓库表单 -->
+                        <div class="form-section">
+                            <h3><i class="fas fa-plus"></i> 添加仓库</h3>
+                            <div class="form-group">
+                                <label for="repoName">仓库名称:</label>
+                                <input type="text" id="repoName" placeholder="例如: my-project">
+                            </div>
+                            <div class="form-group">
+                                <label for="repoUrl">仓库URL:</label>
+                                <input type="text" id="repoUrl" placeholder="git@github.com:user/repo.git 或 https://github.com/user/repo.git">
+                            </div>
+                            <div class="form-group">
+                                <label for="repoType">连接类型:</label>
+                                <select id="repoType">
+                                    <option value="ssh">SSH</option>
+                                    <option value="https">HTTPS</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="repoPlatform">平台:</label>
+                                <select id="repoPlatform">
+                                    <option value="">-- 选择平台 --</option>
+                                </select>
+                            </div>
+                            <button class="btn" onclick="addRepository()">
+                                <i class="fas fa-plus"></i> 添加仓库
+                            </button>
+                            <div id="addRepoMessage"></div>
+                        </div>
+                        
+                        <!-- 仓库列表 -->
+                        <div class="form-section">
+                            <h3><i class="fas fa-list"></i> 已配置仓库</h3>
+                            <div id="repositoryList"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右列：平台配置 -->
+                <div class="right-column">
+                    <div class="section">
+                        <h2><i class="fas fa-server"></i> 平台配置</h2>
+                        
+                        <!-- 添加平台表单 -->
+                        <div class="form-section">
+                            <h3><i class="fas fa-plus"></i> 添加平台</h3>
+                            <div class="form-group">
+                                <label for="platformKey">平台标识:</label>
+                                <input type="text" id="platformKey" placeholder="例如: github.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="platformName">平台名称:</label>
+                                <input type="text" id="platformName" placeholder="例如: GitHub">
+                            </div>
+                            <div class="form-group">
+                                <label for="platformBaseUrl">基础URL:</label>
+                                <input type="text" id="platformBaseUrl" placeholder="https://github.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="platformMrPath">合并请求路径:</label>
+                                <input type="text" id="platformMrPath" placeholder="/pull/">
+                            </div>
+                            <div class="form-group">
+                                <label for="platformCommitPath">提交路径:</label>
+                                <input type="text" id="platformCommitPath" placeholder="/commit/">
+                            </div>
+                            <div class="form-group">
+                                <label for="platformSshPrefix">SSH前缀:</label>
+                                <input type="text" id="platformSshPrefix" placeholder="git@github.com:">
+                            </div>
+                            <div class="form-group">
+                                <label for="platformHttpsPrefix">HTTPS前缀:</label>
+                                <input type="text" id="platformHttpsPrefix" placeholder="https://github.com/">
+                            </div>
+                            <button class="btn" onclick="addPlatform()">
+                                <i class="fas fa-plus"></i> 添加平台
+                            </button>
+                            <div id="addPlatformMessage"></div>
+                        </div>
+                        
+                        <!-- 平台列表 -->
+                        <div class="form-section">
+                            <h3><i class="fas fa-list"></i> 已配置平台</h3>
+                            <div id="platformList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        async function connectRepo() {
-            const repoInput = document.getElementById('repoInput').value.trim();
-            const messageDiv = document.getElementById('connectMessage');
+        // 全局变量
+        let currentConfig = null;
+        
+        // 标签页切换功能
+        function switchTab(tabName) {
+            // 隐藏所有标签页内容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
             
-            if (!repoInput) {
-                showMessage(messageDiv, '请输入仓库路径或URL', 'error');
+            // 移除所有标签按钮的激活状态
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 显示选中的标签页内容
+            const tabContent = document.getElementById(tabName + 'Tab');
+            if (tabContent) {
+                tabContent.classList.add('active');
+            }
+            
+            // 激活选中的标签按钮
+            const tabBtn = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+            if (tabBtn) {
+                tabBtn.classList.add('active');
+            }
+            
+            // 如果切换到配置标签页，加载配置数据
+            if (tabName === 'config') {
+                loadConfigData();
+            }
+        }
+        
+        // 加载配置数据
+        async function loadConfigData() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentConfig = data;
+                    
+                    // 更新配置文件路径显示
+                    document.getElementById('configPath').textContent = data.config_path || '未知';
+                    
+                    // 加载仓库列表
+                    loadRepositoryList(data.repositories || []);
+                    
+                    // 加载平台列表
+                    loadPlatformList(data.platforms || {});
+                    
+                    // 更新平台选择下拉框
+                    updatePlatformSelect(data.platforms || {});
+                }
+            } catch (error) {
+                console.error('加载配置数据失败:', error);
+            }
+        }
+        
+        // 加载仓库列表
+        function loadRepositoryList(repositories) {
+            const listContainer = document.getElementById('repositoryList');
+            
+            if (repositories.length === 0) {
+                listContainer.innerHTML = '<p style="text-align: center; color: #64748b; padding: 20px;">暂无配置的仓库</p>';
                 return;
             }
+            
+            let html = '<div class="config-list">';
+            repositories.forEach((repo, index) => {
+                html += `
+                    <div class="config-item">
+                        <div class="config-item-info">
+                            <div class="config-item-name">${repo.name}</div>
+                            <div class="config-item-details">${repo.url} (${repo.type})</div>
+                        </div>
+                        <div class="config-item-actions">
+                            <button class="btn btn-small btn-danger" onclick="deleteRepository(${index})">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            listContainer.innerHTML = html;
+        }
+        
+        // 加载平台列表
+        function loadPlatformList(platforms) {
+            const listContainer = document.getElementById('platformList');
+            
+            const platformKeys = Object.keys(platforms);
+            if (platformKeys.length === 0) {
+                listContainer.innerHTML = '<p style="text-align: center; color: #64748b; padding: 20px;">暂无配置的平台</p>';
+                return;
+            }
+            
+            let html = '<div class="config-list">';
+            platformKeys.forEach(key => {
+                const platform = platforms[key];
+                html += `
+                    <div class="config-item">
+                        <div class="config-item-info">
+                            <div class="config-item-name">${platform.name} (${key})</div>
+                            <div class="config-item-details">${platform.base_url}</div>
+                        </div>
+                        <div class="config-item-actions">
+                            <button class="btn btn-small btn-danger" onclick="deletePlatform('${key}')">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            listContainer.innerHTML = html;
+        }
+        
+        // 更新平台选择下拉框
+        function updatePlatformSelect(platforms) {
+            const select = document.getElementById('repoPlatform');
+            
+            // 清空现有选项（保留默认选项）
+            select.innerHTML = '<option value="">-- 选择平台 --</option>';
+            
+            // 添加平台选项
+            Object.keys(platforms).forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = platforms[key].name;
+                select.appendChild(option);
+            });
+        }
+        
+        // 添加仓库
+        async function addRepository() {
+            const name = document.getElementById('repoName').value.trim();
+            const url = document.getElementById('repoUrl').value.trim();
+            const type = document.getElementById('repoType').value;
+            const platform = document.getElementById('repoPlatform').value;
+            const messageDiv = document.getElementById('addRepoMessage');
+            
+            if (!name || !url || !platform) {
+                showMessage(messageDiv, '请填写所有必填字段', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/config/repository', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        url: url,
+                        type: type,
+                        platform: platform
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage(messageDiv, '仓库添加成功', 'success');
+                    
+                    // 清空表单
+                    document.getElementById('repoName').value = '';
+                    document.getElementById('repoUrl').value = '';
+                    document.getElementById('repoType').value = 'ssh';
+                    document.getElementById('repoPlatform').value = '';
+                    
+                    // 重新加载配置数据
+                    loadConfigData();
+                    
+                    // 重新加载预设仓库（更新分支检查页面的下拉框）
+                    loadPresetRepos();
+                } else {
+                    showMessage(messageDiv, data.message || '添加仓库失败', 'error');
+                }
+            } catch (error) {
+                console.error('添加仓库失败:', error);
+                showMessage(messageDiv, '添加仓库失败', 'error');
+            }
+        }
+        
+        // 删除仓库
+        async function deleteRepository(index) {
+            if (!confirm('确定要删除这个仓库配置吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/config/repository/${index}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 重新加载配置数据
+                    loadConfigData();
+                    
+                    // 重新加载预设仓库（更新分支检查页面的下拉框）
+                    loadPresetRepos();
+                } else {
+                    alert(data.message || '删除仓库失败');
+                }
+            } catch (error) {
+                console.error('删除仓库失败:', error);
+                alert('删除仓库失败');
+            }
+        }
+        
+        // 添加平台
+        async function addPlatform() {
+            const key = document.getElementById('platformKey').value.trim();
+            const name = document.getElementById('platformName').value.trim();
+            const baseUrl = document.getElementById('platformBaseUrl').value.trim();
+            const mrPath = document.getElementById('platformMrPath').value.trim();
+            const commitPath = document.getElementById('platformCommitPath').value.trim();
+            const sshPrefix = document.getElementById('platformSshPrefix').value.trim();
+            const httpsPrefix = document.getElementById('platformHttpsPrefix').value.trim();
+            const messageDiv = document.getElementById('addPlatformMessage');
+            
+            if (!key || !name || !baseUrl) {
+                showMessage(messageDiv, '请填写平台标识、名称和基础URL', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/config/platform', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        key: key,
+                        config: {
+                            name: name,
+                            base_url: baseUrl,
+                            merge_request_path: mrPath || '/-/merge_requests/',
+                            commit_path: commitPath || '/-/commit/',
+                            ssh_prefix: sshPrefix || `git@${key}:`,
+                            https_prefix: httpsPrefix || `https://${key}/`
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage(messageDiv, '平台添加成功', 'success');
+                    
+                    // 清空表单
+                    document.getElementById('platformKey').value = '';
+                    document.getElementById('platformName').value = '';
+                    document.getElementById('platformBaseUrl').value = '';
+                    document.getElementById('platformMrPath').value = '';
+                    document.getElementById('platformCommitPath').value = '';
+                    document.getElementById('platformSshPrefix').value = '';
+                    document.getElementById('platformHttpsPrefix').value = '';
+                    
+                    // 重新加载配置数据
+                    loadConfigData();
+                } else {
+                    showMessage(messageDiv, data.message || '添加平台失败', 'error');
+                }
+            } catch (error) {
+                console.error('添加平台失败:', error);
+                showMessage(messageDiv, '添加平台失败', 'error');
+            }
+        }
+        
+        // 删除平台
+        async function deletePlatform(key) {
+            if (!confirm(`确定要删除平台 "${key}" 吗？`)) {
+                return;
+            }
+            
+            // 注意：这里需要后端实现删除平台的API
+            alert('删除平台功能暂未实现');
         }
         
         function onRepoSelectChange() {
@@ -604,6 +1148,9 @@
                  
                  if (data.success) {
                      const repoSelect = document.getElementById('repoSelect');
+                     // 清空现有选项，保留默认选项
+                     repoSelect.innerHTML = '<option value="">-- 选择预设仓库 --</option>';
+                     
                      data.repositories.forEach(repo => {
                          const option = document.createElement('option');
                          option.value = repo.url;
@@ -616,8 +1163,12 @@
              }
          }
         
-        // 页面加载时获取预设仓库
+        // 页面加载时初始化
          document.addEventListener('DOMContentLoaded', async function() {
+             // 默认显示分支检查标签页
+             switchTab('main');
+             
+             // 加载预设仓库
              await loadPresetRepos();
          });
         
@@ -650,9 +1201,6 @@
                 
                 if (data.success) {
                     let message = data.message;
-                    if (data.local_path) {
-                        message += `<br><small>本地路径: ${data.local_path}</small>`;
-                    }
                     showMessage(messageDiv, message, 'success');
                     displayBranches(data.branches);
                 } else {
@@ -966,6 +1514,28 @@
                     checkMerge();
                 }
             }
+        });
+        
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 确保默认显示分支检查页面
+            switchTab('main');
+            
+            // 加载预设仓库
+            loadPresetRepos();
+            
+            // 添加标签页切换的键盘快捷键支持
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey) {
+                    if (e.key === '1') {
+                        e.preventDefault();
+                        switchTab('main');
+                    } else if (e.key === '2') {
+                        e.preventDefault();
+                        switchTab('config');
+                    }
+                }
+            });
         });
     </script>
 </body>
