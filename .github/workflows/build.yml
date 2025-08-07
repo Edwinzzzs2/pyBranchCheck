@@ -7,28 +7,25 @@ on:
       - 'v*'
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
             executable_name: pyBranchCheck.exe
             artifact_name: pyBranchCheck-windows
-            build_command: |
-              python -m PyInstaller --onefile --name=pyBranchCheck --add-data="templates;templates" --add-data="config.json;." --hidden-import=flask --hidden-import=webbrowser --hidden-import=threading --hidden-import=subprocess --hidden-import=pathlib --hidden-import=tempfile --hidden-import=shutil --hidden-import=json --hidden-import=datetime --hidden-import=re --hidden-import=time --hidden-import=git app.py --clean
           - os: macos-latest
             executable_name: pyBranchCheck
             artifact_name: pyBranchCheck-macos
-            build_command: |
-              python -m PyInstaller --onefile --name=pyBranchCheck --add-data="templates:templates" --add-data="config.json:." --hidden-import=flask --hidden-import=webbrowser --hidden-import=threading --hidden-import=subprocess --hidden-import=pathlib --hidden-import=tempfile --hidden-import=shutil --hidden-import=json --hidden-import=datetime --hidden-import=re --hidden-import=time --hidden-import=git app.py --clean
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -38,12 +35,13 @@ jobs:
     - name: Install system dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        brew install git
+        # macOS通常已经预装Git
+        git --version
 
     - name: Install system dependencies (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        # Git通常已经预装在GitHub Actions的Windows环境中
+        # Windows通常已经预装Git
         git --version
 
     - name: Install Python dependencies
@@ -52,35 +50,26 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
 
-    - name: Build executable
-      run: ${{ matrix.build_command }}
-
-    - name: Test executable (Windows)
+    - name: Build executable (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        # 简单测试exe是否能启动（快速退出测试）
-        echo "Testing Windows executable..."
-        if (Test-Path "dist/${{ matrix.executable_name }}") {
-          echo "✅ Executable created successfully"
-          Get-Item "dist/${{ matrix.executable_name }}" | Select-Object Name, Length, LastWriteTime
-        } else {
-          echo "❌ Executable not found"
-          exit 1
-        }
+        python -m PyInstaller --onefile --name=pyBranchCheck --add-data="templates;templates" --add-data="config.json;." --hidden-import=flask --hidden-import=webbrowser --hidden-import=threading --hidden-import=subprocess --hidden-import=pathlib --hidden-import=tempfile --hidden-import=shutil --hidden-import=json --hidden-import=datetime --hidden-import=re --hidden-import=time --hidden-import=git app.py --clean
 
-    - name: Test executable (macOS)
+    - name: Build executable (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        # 简单测试可执行文件是否存在
-        echo "Testing macOS executable..."
+        python -m PyInstaller --onefile --name=pyBranchCheck --add-data="templates:templates" --add-data="config.json:." --hidden-import=flask --hidden-import=webbrowser --hidden-import=threading --hidden-import=subprocess --hidden-import=pathlib --hidden-import=tempfile --hidden-import=shutil --hidden-import=json --hidden-import=datetime --hidden-import=re --hidden-import=time --hidden-import=git app.py --clean
+
+    - name: Test executable
+      run: |
         if [ -f "dist/${{ matrix.executable_name }}" ]; then
           echo "✅ Executable created successfully"
           ls -la "dist/${{ matrix.executable_name }}"
-          chmod +x "dist/${{ matrix.executable_name }}"
         else
           echo "❌ Executable not found"
           exit 1
         fi
+      shell: bash
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
@@ -112,22 +101,3 @@ jobs:
           - 包含所有必要的依赖文件
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # 创建一个汇总job，显示构建结果
-  build-summary:
-    needs: build
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-    - name: Build Summary
-      run: |
-        echo "## 构建结果汇总" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| 平台 | 状态 |" >> $GITHUB_STEP_SUMMARY
-        echo "|------|------|" >> $GITHUB_STEP_SUMMARY
-        echo "| Windows | ${{ needs.build.result == 'success' && '✅ 成功' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| macOS | ${{ needs.build.result == 'success' && '✅ 成功' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 下载方式" >> $GITHUB_STEP_SUMMARY
-        echo "1. 在Actions页面下载Artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "2. 如果是tag推送，会自动创建Release" >> $GITHUB_STEP_SUMMARY
