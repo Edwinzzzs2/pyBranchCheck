@@ -71,25 +71,55 @@ def setup_git_environment():
 
 # Git环境将在主函数中初始化
 
-app = Flask(__name__)
-
-def get_config_path():
-    """获取配置文件路径，优先使用外部配置文件"""
-    # 检查是否为打包后的exe运行
+def get_resource_path(relative_path):
+    """获取资源文件的绝对路径 - 跨平台兼容"""
     is_exe = getattr(sys, 'frozen', False)
     
     if is_exe:
-        # 打包后的exe，配置文件在exe同目录
-        exe_dir = os.path.dirname(sys.executable)
-        external_config = os.path.join(exe_dir, 'config.json')
-        
-        # 优先使用外部配置文件
-        if os.path.exists(external_config):
-            return external_config
-        
-        # 如果外部配置文件不存在，使用内置配置文件
-        internal_config = os.path.join(os.path.dirname(__file__), 'config.json')
-        return internal_config
+        # 打包后的可执行文件
+        if sys.platform == 'darwin':  # macOS
+            if sys.executable.endswith('.app/Contents/MacOS/pyBranchCheck'):
+                # .app包结构
+                app_dir = os.path.dirname(os.path.dirname(os.path.dirname(sys.executable)))
+                base_path = os.path.join(app_dir, 'Contents', 'Resources')
+            else:
+                # 普通可执行文件
+                base_path = os.path.dirname(sys.executable)
+        else:
+            # Windows和Linux
+            base_path = os.path.dirname(sys.executable)
+    else:
+        # 开发环境
+        base_path = os.path.dirname(__file__)
+    
+    return os.path.join(base_path, relative_path)
+
+# 初始化Flask应用 - 使用默认模板配置
+app = Flask(__name__)
+
+def get_config_path():
+    """获取配置文件路径 - 跨平台兼容"""
+    # 检查是否为打包后的可执行文件
+    is_exe = getattr(sys, 'frozen', False)
+    
+    if is_exe:
+        # 打包后的可执行文件，配置文件位置根据平台确定
+        if sys.platform == 'darwin':  # macOS
+            if sys.executable.endswith('.app/Contents/MacOS/pyBranchCheck'):
+                # 如果是.app包，配置文件放在用户可写的目录
+                # 使用应用支持目录，这样用户可以修改配置
+                home_dir = os.path.expanduser('~')
+                config_dir = os.path.join(home_dir, 'Library', 'Application Support', 'pyBranchCheck')
+                os.makedirs(config_dir, exist_ok=True)
+                return os.path.join(config_dir, 'config.json')
+            else:
+                # 普通可执行文件，放在同目录
+                exe_dir = os.path.dirname(sys.executable)
+                return os.path.join(exe_dir, 'config.json')
+        else:
+            # Windows和Linux，配置文件在可执行文件同目录
+            exe_dir = os.path.dirname(sys.executable)
+            return os.path.join(exe_dir, 'config.json')
     else:
         # 开发环境，使用项目目录下的配置文件
         return os.path.join(os.path.dirname(__file__), 'config.json')
@@ -98,11 +128,84 @@ def load_config():
     """加载配置文件"""
     try:
         config_path = get_config_path()
+        
+        # 如果配置文件不存在，创建默认配置文件
+        if not os.path.exists(config_path):
+            default_config = create_default_config()
+            save_config(default_config)
+            print(f"✅ 已创建默认配置文件: {config_path}")
+            return default_config
+            
         with open(config_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         print(f"加载配置文件失败: {e}")
-        return {"repositories": [], "platforms": {}}
+        # 返回默认配置并尝试保存
+        default_config = create_default_config()
+        try:
+            save_config(default_config)
+        except:
+            pass
+        return default_config
+
+def create_default_config():
+    """创建默认配置"""
+    return {
+        "repositories": [
+            {
+                "name": "xlb_fss_web",
+                "url": "git@codeup.aliyun.com:5f9a23913a5188f27f3f344b/web/xlb_fss_web.git",
+                "type": "ssh",
+                "platform": "codeup.aliyun.com"
+            },
+            {
+                "name": "react-web",
+                "url": "git@codeup.aliyun.com:5f9a23913a5188f27f3f344b/web/react_web.git",
+                "type": "ssh",
+                "platform": "codeup.aliyun.com"
+            },
+            {
+                "name": "xlb_bms_web",
+                "url": "git@codeup.aliyun.com:5f9a23913a5188f27f3f344b/web/xlb_bms_web.git",
+                "type": "ssh",
+                "platform": "codeup.aliyun.com"
+            }
+        ],
+        "platforms": {
+            "codeup.aliyun.com": {
+                "name": "阿里云CodeUp",
+                "base_url": "https://codeup.aliyun.com",
+                "merge_request_path": "/change/",
+                "commit_path": "/commit/",
+                "ssh_prefix": "git@codeup.aliyun.com:",
+                "https_prefix": "https://codeup.aliyun.com/"
+            },
+            "aliyun": {
+                "name": "阿里云Code",
+                "base_url": "https://code.aliyun.com",
+                "merge_request_path": "/-/merge_requests/",
+                "commit_path": "/-/commit/",
+                "ssh_prefix": "git@code.aliyun.com:",
+                "https_prefix": "https://code.aliyun.com/"
+            },
+            "gitlab": {
+                "name": "GitLab",
+                "base_url": "https://gitlab.com",
+                "merge_request_path": "/-/merge_requests/",
+                "commit_path": "/-/commit/",
+                "ssh_prefix": "git@gitlab.com:",
+                "https_prefix": "https://gitlab.com/"
+            },
+            "github": {
+                "name": "GitHub",
+                "base_url": "https://github.com",
+                "merge_request_path": "/pull/",
+                "commit_path": "/commit/",
+                "ssh_prefix": "git@github.com:",
+                "https_prefix": "https://github.com/"
+            }
+        }
+    }
 
 def save_config(config):
     """保存配置文件"""
@@ -110,13 +213,30 @@ def save_config(config):
         config_path = get_config_path()
         
         # 确保目录存在
-        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        config_dir = os.path.dirname(config_path)
+        if config_dir:  # 如果有目录路径
+            os.makedirs(config_dir, exist_ok=True)
+        
+        # 检查是否为exe模式，如果是，确保有写入权限
+        is_exe = getattr(sys, 'frozen', False)
+        if is_exe:
+            # 检查exe目录的写入权限
+            exe_dir = os.path.dirname(sys.executable)
+            if not os.access(exe_dir, os.W_OK):
+                print(f"警告: 没有写入权限到目录 {exe_dir}")
+                print("请尝试以管理员身份运行程序，或将程序移动到有写入权限的目录")
         
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=4)
+        
+        print(f"✅ 配置文件已保存: {config_path}")
         return True
+    except PermissionError as e:
+        print(f"❌ 保存配置文件失败 - 权限不足: {e}")
+        print("请尝试以管理员身份运行程序")
+        return False
     except Exception as e:
-        print(f"保存配置文件失败: {e}")
+        print(f"❌ 保存配置文件失败: {e}")
         return False
 
 class GitBranchChecker:
@@ -635,7 +755,14 @@ class GitBranchChecker:
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        print(f"🌐 访问主页")
+        return render_template('index.html')
+    except Exception as e:
+        print(f"❌ 渲染模板时发生错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"渲染模板失败: {str(e)}", 500
 
 @app.route('/api/config')
 def get_config():
@@ -891,24 +1018,60 @@ def close_existing_processes():
     except Exception as e:
         print(f"关闭之前进程时出错: {e}")
 
-def ensure_config_file():
-    """确保当前目录存在config.json文件"""
-    current_dir = os.getcwd()
-    config_file = os.path.join(current_dir, 'config.json')
+def show_user_manual():
+    """显示用户使用手册和重要提示"""
+    print("\n" + "=" * 60)
+    print("📖 Git分支检查工具 - 使用手册")
+    print("=" * 60)
     
-    if not os.path.exists(config_file):
-        # 从程序内置配置复制到当前目录
-        try:
-            internal_config = load_config()
-            with open(config_file, 'w', encoding='utf-8') as f:
-                json.dump(internal_config, f, ensure_ascii=False, indent=2)
-            print(f"✅ 已在当前目录生成配置文件: {config_file}")
-        except Exception as e:
-            print(f"❌ 生成配置文件失败: {e}")
-    else:
-        print(f"✅ 配置文件已存在: {config_file}")
+    print("\n🔧 重要文件说明:")
+    print("┌─────────────────────────────────────────────────────────┐")
+    print("│ 📄 config.json - 配置文件                               │")
+    print("│    作用: 存储仓库配置和平台设置                          │")
+    print("│    位置: 程序根目录                                      │")
+    print("│    ⚠️  请勿手动删除，删除后需重新配置所有仓库             │")
+    print("├─────────────────────────────────────────────────────────┤")
+    print("│ 📁 temp_repos/ - 临时仓库文件夹                          │")
+    print("│    作用: 存储克隆的Git仓库，用于分支检查                  │")
+    print("│    位置: 程序根目录                                      │")
+    print("│    ⚠️  可以删除以释放空间，但会重新下载仓库               │")
+    print("└─────────────────────────────────────────────────────────┘")
+    
+    print("\n🚀 快速开始:")
+    print("1. 在浏览器中打开 http://localhost:5000")
+    print("2. 在'配置管理'页面添加您的Git仓库")
+    print("3. 在'分支检查'页面选择仓库并检查分支合并状态")
+    
+    print("\n💡 使用技巧:")
+    print("• 支持SSH和HTTPS两种连接方式")
+    print("• 分支关键字支持多个，用英文逗号分隔")
+    print("• 程序会自动缓存仓库，提高检查速度")
+    print("• 关闭此窗口将停止服务")
+    
+    print("\n⚠️  注意事项:")
+    print("• 首次使用需要配置Git仓库信息")
+    print("• 确保网络连接正常，能够访问Git仓库")
+    print("• SSH连接需要配置好SSH密钥")
+    print("• HTTPS连接可能需要输入用户名密码")
+    
+    print("\n" + "=" * 60)
+
+
 
 if __name__ == '__main__':
+    # 屏蔽Flask开发服务器警告
+    import warnings
+    from werkzeug.serving import WSGIRequestHandler
+    
+    # 过滤Flask开发服务器警告
+    warnings.filterwarnings('ignore', message='This is a development server')
+    warnings.filterwarnings('ignore', message='Do not use it in a production deployment')
+    
+    # 屏蔽werkzeug的日志输出
+    import logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
+    
     # 检查是否为打包后的exe运行
     is_exe = getattr(sys, 'frozen', False)
     
@@ -916,10 +1079,22 @@ if __name__ == '__main__':
         try:
             # 打包后的exe模式
             print("pyBranchCheck 正在启动...")
+            
+            # 显示用户手册
+            show_user_manual()
+            
+            print("\n🌐 服务器启动信息:")
             print("服务器启动后将自动打开浏览器")
             print("如果浏览器没有自动打开，请手动访问: http://localhost:5000")
             print("关闭此窗口将停止服务")
             print("-" * 50)
+            
+            # 显示配置文件路径
+            config_path = get_config_path()
+            print(f"📁 配置文件位置: {config_path}")
+            
+            # 确保配置文件存在
+            load_config()  # 这会自动创建配置文件如果不存在
             
             # 初始化Git环境
             try:
@@ -965,6 +1140,17 @@ if __name__ == '__main__':
         try:
             setup_git_environment()
             print("Git环境初始化成功")
+            
+            # 显示配置文件路径
+            config_path = get_config_path()
+            print(f"📁 配置文件位置: {config_path}")
+            
+            # 确保配置文件存在
+            load_config()  # 这会自动创建配置文件如果不存在
+            
+            # 显示用户手册
+            show_user_manual()
+            
         except Exception as e:
             print(f"警告: Git环境初始化失败 - {e}")
             print("某些功能可能无法正常工作")

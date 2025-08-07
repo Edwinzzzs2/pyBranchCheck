@@ -100,8 +100,14 @@ jobs:
           2. 双击运行程序（Windows）或在终端运行 `./pyBranchCheck`（Mac）
           3. 浏览器会自动打开 http://localhost:5000
           
+          ### 重要文件说明
+          - **config.json**: 存储仓库配置和平台设置，请勿手动删除
+          - **temp_repos/**: 临时仓库文件夹，存储克隆的Git仓库，可以删除以释放空间
+          
           ### 更新内容
-          - 自动构建的多平台版本
-          - 包含所有必要的依赖文件
+          - 添加了启动时的用户手册提示
+          - 屏蔽了Flask开发服务器警告
+          - 优化了配置文件管理
+          - 分支关键字支持多个，用英文逗号分隔
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
