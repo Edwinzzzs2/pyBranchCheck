@@ -1,0 +1,133 @@
+name: Build Multi-Platform Executables
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            executable_name: pyBranchCheck.exe
+            artifact_name: pyBranchCheck-windows
+            build_command: |
+              python -m PyInstaller --onefile --name=pyBranchCheck --add-data="templates;templates" --add-data="config.json;." --hidden-import=flask --hidden-import=webbrowser --hidden-import=threading --hidden-import=subprocess --hidden-import=pathlib --hidden-import=tempfile --hidden-import=shutil --hidden-import=json --hidden-import=datetime --hidden-import=re --hidden-import=time --hidden-import=git app.py --clean
+          - os: macos-latest
+            executable_name: pyBranchCheck
+            artifact_name: pyBranchCheck-macos
+            build_command: |
+              python -m PyInstaller --onefile --name=pyBranchCheck --add-data="templates:templates" --add-data="config.json:." --hidden-import=flask --hidden-import=webbrowser --hidden-import=threading --hidden-import=subprocess --hidden-import=pathlib --hidden-import=tempfile --hidden-import=shutil --hidden-import=json --hidden-import=datetime --hidden-import=re --hidden-import=time --hidden-import=git app.py --clean
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install git
+
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Git通常已经预装在GitHub Actions的Windows环境中
+        git --version
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build executable
+      run: ${{ matrix.build_command }}
+
+    - name: Test executable (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # 简单测试exe是否能启动（快速退出测试）
+        echo "Testing Windows executable..."
+        if (Test-Path "dist/${{ matrix.executable_name }}") {
+          echo "✅ Executable created successfully"
+          Get-Item "dist/${{ matrix.executable_name }}" | Select-Object Name, Length, LastWriteTime
+        } else {
+          echo "❌ Executable not found"
+          exit 1
+        }
+
+    - name: Test executable (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        # 简单测试可执行文件是否存在
+        echo "Testing macOS executable..."
+        if [ -f "dist/${{ matrix.executable_name }}" ]; then
+          echo "✅ Executable created successfully"
+          ls -la "dist/${{ matrix.executable_name }}"
+          chmod +x "dist/${{ matrix.executable_name }}"
+        else
+          echo "❌ Executable not found"
+          exit 1
+        fi
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: dist/${{ matrix.executable_name }}
+        retention-days: 30
+
+    - name: Create Release Assets
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/${{ matrix.executable_name }}
+        name: Release ${{ github.ref_name }}
+        body: |
+          ## pyBranchCheck ${{ github.ref_name }}
+          
+          ### 下载说明
+          - **Windows用户**: 下载 `pyBranchCheck.exe`
+          - **Mac用户**: 下载 `pyBranchCheck`，需要在终端中运行 `chmod +x pyBranchCheck` 添加执行权限
+          
+          ### 使用方法
+          1. 确保系统已安装Git
+          2. 双击运行程序（Windows）或在终端运行 `./pyBranchCheck`（Mac）
+          3. 浏览器会自动打开 http://localhost:5000
+          
+          ### 更新内容
+          - 自动构建的多平台版本
+          - 包含所有必要的依赖文件
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 创建一个汇总job，显示构建结果
+  build-summary:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+    - name: Build Summary
+      run: |
+        echo "## 构建结果汇总" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| 平台 | 状态 |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Windows | ${{ needs.build.result == 'success' && '✅ 成功' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| macOS | ${{ needs.build.result == 'success' && '✅ 成功' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 下载方式" >> $GITHUB_STEP_SUMMARY
+        echo "1. 在Actions页面下载Artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "2. 如果是tag推送，会自动创建Release" >> $GITHUB_STEP_SUMMARY
