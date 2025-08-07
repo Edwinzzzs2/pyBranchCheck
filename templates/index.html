@@ -60,10 +60,17 @@
         }
 
         .content {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: calc(100vh - 200px);
+        }
+
+        /* 主页面使用左右两列布局 */
+        #mainTab .content {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
-            height: calc(100vh - 100px);
         }
 
         .left-column, .right-column {
@@ -291,24 +298,29 @@
 
         /* 检查结果表格列宽设置 */
         .results-table th:nth-child(1), .results-table td:nth-child(1) {
-            width: 30%;  /* 分支名称列 */
+            width: 60px;  /* 序号列 */
+            text-align: center;
         }
 
         .results-table th:nth-child(2), .results-table td:nth-child(2) {
-            width: 12%;  /* 合并状态列 */
+            width: 35%;  /* 分支名称列 - 加宽 */
         }
 
         .results-table th:nth-child(3), .results-table td:nth-child(3) {
-            width: 16%;  /* 合并日期列 */
+            width: 12%;  /* 合并状态列 */
         }
 
         .results-table th:nth-child(4), .results-table td:nth-child(4) {
-            width: 22%;  /* 合并提交列 */
+            width: 18%;  /* 合并日期列 */
         }
 
         .results-table th:nth-child(5), .results-table td:nth-child(5) {
-            width: 20%;  /* 提交人列 */
-            max-width: 200px;
+            width: 20%;  /* 合并提交列 */
+        }
+
+        .results-table th:nth-child(6), .results-table td:nth-child(6) {
+            width: 15%;  /* 提交人列 - 缩小 */
+            max-width: 150px;
             word-break: break-all;
             overflow-wrap: break-word;
         }
@@ -676,27 +688,29 @@
                     <!-- 仓库连接部分 -->
                     <div class="section">
                         <h2><i class="fas fa-folder-open"></i> 仓库连接</h2>
-                    <div class="form-group">
-                        <label for="repoSelect">选择预设仓库：</label>
-                        <select id="repoSelect" onchange="onRepoSelectChange()">
-                            <option value="">-- 选择预设仓库 --</option>
-                        </select>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label for="repoSelect">选择预设仓库：</label>
+                                <select id="repoSelect" onchange="onRepoSelectChange()">
+                                    <option value="">-- 选择预设仓库 --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="repoInput">或手动输入仓库路径或URL:</label>
+                                <input type="text" id="repoInput" placeholder="支持本地路径 (D:\code\myproject) 或SSH URL (git@github.com:user/repo.git)">
+                            </div>
+                        </div>
+                        <button class="btn" id="connectBtn" onclick="connectRepo()">
+                            <i class="fas fa-link"></i> 连接仓库
+                        </button>
+                        
+                        <div class="loading" id="connectLoading">
+                            <div class="spinner"></div>
+                            <p>正在连接仓库...</p>
+                        </div>
+                        
+                        <div id="connectMessage"></div>
                     </div>
-                    <div class="form-group">
-                        <label for="repoInput">或手动输入仓库路径或URL:</label>
-                        <input type="text" id="repoInput" placeholder="支持本地路径 (D:\code\myproject) 或SSH URL (git@github.com:user/repo.git)">
-                    </div>
-                    <button class="btn" id="connectBtn" onclick="connectRepo()">
-                        <i class="fas fa-link"></i> 连接仓库
-                    </button>
-                    
-                    <div class="loading" id="connectLoading">
-                        <div class="spinner"></div>
-                        <p>正在连接仓库...</p>
-                    </div>
-                    
-                    <div id="connectMessage"></div>
-                </div>
 
                 <!-- 分支列表部分 -->
                 <div class="section" style="flex: 1; display: flex; flex-direction: column;">
@@ -715,7 +729,10 @@
                     <div class="grid">
                         <div class="form-group">
                             <label for="keyword">分支关键字:</label>
-                            <input type="text" id="keyword" placeholder="例如: 0811">
+                            <input type="text" id="keyword" placeholder="例如: 0811 或 0811,0812,feature">
+                            <small style="color: #64748b; font-size: 0.875rem; margin-top: 4px; display: block;">
+                                <i class="fas fa-info-circle"></i> 支持多个关键字，用英文逗号分隔
+                            </small>
                         </div>
                         <div class="form-group">
                             <label for="targetBranch">目标分支:</label>
@@ -771,12 +788,7 @@
                                     <option value="https">HTTPS</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label for="repoPlatform">平台:</label>
-                                <select id="repoPlatform">
-                                    <option value="">-- 选择平台 --</option>
-                                </select>
-                            </div>
+
                             <button class="btn" onclick="addRepository()">
                                 <i class="fas fa-plus"></i> 添加仓库
                             </button>
@@ -791,55 +803,7 @@
                     </div>
                 </div>
                 
-                <!-- 右列：平台配置 -->
-                <div class="right-column">
-                    <div class="section">
-                        <h2><i class="fas fa-server"></i> 平台配置</h2>
-                        
-                        <!-- 添加平台表单 -->
-                        <div class="form-section">
-                            <h3><i class="fas fa-plus"></i> 添加平台</h3>
-                            <div class="form-group">
-                                <label for="platformKey">平台标识:</label>
-                                <input type="text" id="platformKey" placeholder="例如: github.com">
-                            </div>
-                            <div class="form-group">
-                                <label for="platformName">平台名称:</label>
-                                <input type="text" id="platformName" placeholder="例如: GitHub">
-                            </div>
-                            <div class="form-group">
-                                <label for="platformBaseUrl">基础URL:</label>
-                                <input type="text" id="platformBaseUrl" placeholder="https://github.com">
-                            </div>
-                            <div class="form-group">
-                                <label for="platformMrPath">合并请求路径:</label>
-                                <input type="text" id="platformMrPath" placeholder="/pull/">
-                            </div>
-                            <div class="form-group">
-                                <label for="platformCommitPath">提交路径:</label>
-                                <input type="text" id="platformCommitPath" placeholder="/commit/">
-                            </div>
-                            <div class="form-group">
-                                <label for="platformSshPrefix">SSH前缀:</label>
-                                <input type="text" id="platformSshPrefix" placeholder="git@github.com:">
-                            </div>
-                            <div class="form-group">
-                                <label for="platformHttpsPrefix">HTTPS前缀:</label>
-                                <input type="text" id="platformHttpsPrefix" placeholder="https://github.com/">
-                            </div>
-                            <button class="btn" onclick="addPlatform()">
-                                <i class="fas fa-plus"></i> 添加平台
-                            </button>
-                            <div id="addPlatformMessage"></div>
-                        </div>
-                        
-                        <!-- 平台列表 -->
-                        <div class="form-section">
-                            <h3><i class="fas fa-list"></i> 已配置平台</h3>
-                            <div id="platformList"></div>
-                        </div>
-                    </div>
-                </div>
+
             </div>
         </div>
     </div>
@@ -892,12 +856,6 @@
                     
                     // 加载仓库列表
                     loadRepositoryList(data.repositories || []);
-                    
-                    // 加载平台列表
-                    loadPlatformList(data.platforms || {});
-                    
-                    // 更新平台选择下拉框
-                    updatePlatformSelect(data.platforms || {});
                 }
             } catch (error) {
                 console.error('加载配置数据失败:', error);
@@ -934,64 +892,17 @@
             listContainer.innerHTML = html;
         }
         
-        // 加载平台列表
-        function loadPlatformList(platforms) {
-            const listContainer = document.getElementById('platformList');
-            
-            const platformKeys = Object.keys(platforms);
-            if (platformKeys.length === 0) {
-                listContainer.innerHTML = '<p style="text-align: center; color: #64748b; padding: 20px;">暂无配置的平台</p>';
-                return;
-            }
-            
-            let html = '<div class="config-list">';
-            platformKeys.forEach(key => {
-                const platform = platforms[key];
-                html += `
-                    <div class="config-item">
-                        <div class="config-item-info">
-                            <div class="config-item-name">${platform.name} (${key})</div>
-                            <div class="config-item-details">${platform.base_url}</div>
-                        </div>
-                        <div class="config-item-actions">
-                            <button class="btn btn-small btn-danger" onclick="deletePlatform('${key}')">
-                                <i class="fas fa-trash"></i> 删除
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            
-            listContainer.innerHTML = html;
-        }
-        
-        // 更新平台选择下拉框
-        function updatePlatformSelect(platforms) {
-            const select = document.getElementById('repoPlatform');
-            
-            // 清空现有选项（保留默认选项）
-            select.innerHTML = '<option value="">-- 选择平台 --</option>';
-            
-            // 添加平台选项
-            Object.keys(platforms).forEach(key => {
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = platforms[key].name;
-                select.appendChild(option);
-            });
-        }
+
         
         // 添加仓库
         async function addRepository() {
             const name = document.getElementById('repoName').value.trim();
             const url = document.getElementById('repoUrl').value.trim();
             const type = document.getElementById('repoType').value;
-            const platform = document.getElementById('repoPlatform').value;
             const messageDiv = document.getElementById('addRepoMessage');
             
-            if (!name || !url || !platform) {
-                showMessage(messageDiv, '请填写所有必填字段', 'error');
+            if (!name || !url) {
+                showMessage(messageDiv, '请填写仓库名称和URL', 'error');
                 return;
             }
             
@@ -1004,8 +915,7 @@
                     body: JSON.stringify({
                         name: name,
                         url: url,
-                        type: type,
-                        platform: platform
+                        type: type
                     })
                 });
                 
@@ -1018,7 +928,6 @@
                     document.getElementById('repoName').value = '';
                     document.getElementById('repoUrl').value = '';
                     document.getElementById('repoType').value = 'ssh';
-                    document.getElementById('repoPlatform').value = '';
                     
                     // 重新加载配置数据
                     loadConfigData();
@@ -1062,75 +971,7 @@
             }
         }
         
-        // 添加平台
-        async function addPlatform() {
-            const key = document.getElementById('platformKey').value.trim();
-            const name = document.getElementById('platformName').value.trim();
-            const baseUrl = document.getElementById('platformBaseUrl').value.trim();
-            const mrPath = document.getElementById('platformMrPath').value.trim();
-            const commitPath = document.getElementById('platformCommitPath').value.trim();
-            const sshPrefix = document.getElementById('platformSshPrefix').value.trim();
-            const httpsPrefix = document.getElementById('platformHttpsPrefix').value.trim();
-            const messageDiv = document.getElementById('addPlatformMessage');
-            
-            if (!key || !name || !baseUrl) {
-                showMessage(messageDiv, '请填写平台标识、名称和基础URL', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/config/platform', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        key: key,
-                        config: {
-                            name: name,
-                            base_url: baseUrl,
-                            merge_request_path: mrPath || '/-/merge_requests/',
-                            commit_path: commitPath || '/-/commit/',
-                            ssh_prefix: sshPrefix || `git@${key}:`,
-                            https_prefix: httpsPrefix || `https://${key}/`
-                        }
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showMessage(messageDiv, '平台添加成功', 'success');
-                    
-                    // 清空表单
-                    document.getElementById('platformKey').value = '';
-                    document.getElementById('platformName').value = '';
-                    document.getElementById('platformBaseUrl').value = '';
-                    document.getElementById('platformMrPath').value = '';
-                    document.getElementById('platformCommitPath').value = '';
-                    document.getElementById('platformSshPrefix').value = '';
-                    document.getElementById('platformHttpsPrefix').value = '';
-                    
-                    // 重新加载配置数据
-                    loadConfigData();
-                } else {
-                    showMessage(messageDiv, data.message || '添加平台失败', 'error');
-                }
-            } catch (error) {
-                console.error('添加平台失败:', error);
-                showMessage(messageDiv, '添加平台失败', 'error');
-            }
-        }
-        
-        // 删除平台
-        async function deletePlatform(key) {
-            if (!confirm(`确定要删除平台 "${key}" 吗？`)) {
-                return;
-            }
-            
-            // 注意：这里需要后端实现删除平台的API
-            alert('删除平台功能暂未实现');
-        }
+
         
         function onRepoSelectChange() {
             const repoSelect = document.getElementById('repoSelect');
@@ -1332,32 +1173,36 @@
             const notMergedCount = results.length - mergedCount;
             
             let html = `
-                <h3 style="margin-top: 20px; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                <h3 style="color: #1e293b; display: flex; align-items: center; gap: 8px;">
                     <i class="fas fa-chart-bar"></i> 检查结果
                 </h3>
-                <p style="margin-bottom: 15px; color: #64748b;">
-                    关键字: <strong>${keyword}</strong> | 目标分支: <strong>${targetBranch}</strong>
-                </p>
                 
-                <!-- 过滤器 -->
-                <div class="filter-container">
-                    <div class="filter-label">
-                        <i class="fas fa-filter" style="color: #64748b;"></i>
-                        <span>过滤状态:</span>
-                    </div>
-                    <div class="filter-options">
-                        <label class="filter-option">
-                            <input type="radio" name="statusFilter" value="all" checked onchange="filterResults()">
-                            <span>全部 (${results.length})</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="radio" name="statusFilter" value="merged" onchange="filterResults()">
-                            <span style="color: #059669;">已合并 (${mergedCount})</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="radio" name="statusFilter" value="not-merged" onchange="filterResults()">
-                            <span style="color: #dc2626;">未合并 (${notMergedCount})</span>
-                        </label>
+                <!-- 信息和过滤器在同一行 -->
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                    <p style="margin: 0; color: #64748b;">
+                        关键字: <strong>${keyword}</strong> | 目标分支: <strong>${targetBranch}</strong>
+                    </p>
+                    
+                    <!-- 过滤器 -->
+                    <div class="filter-container" style="margin: 0;">
+                        <div class="filter-label">
+                            <i class="fas fa-filter" style="color: #64748b;"></i>
+                            <span>过滤状态:</span>
+                        </div>
+                        <div class="filter-options">
+                            <label class="filter-option">
+                                <input type="radio" name="statusFilter" value="all" checked onchange="filterResults()">
+                                <span>全部 (${results.length})</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="radio" name="statusFilter" value="merged" onchange="filterResults()">
+                                <span style="color: #059669;">已合并 (${mergedCount})</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="radio" name="statusFilter" value="not-merged" onchange="filterResults()">
+                                <span style="color: #dc2626;">未合并 (${notMergedCount})</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 
@@ -1365,6 +1210,7 @@
                     <table class="results-table">
                         <thead>
                             <tr>
+                                <th style="width: 60px;">序号</th>
                                 <th>分支名称</th>
                                 <th>合并状态</th>
                                 <th>合并日期</th>
@@ -1388,7 +1234,7 @@
         function generateResultRows(results) {
             let rowsHtml = '';
             
-            results.forEach(result => {
+            results.forEach((result, index) => {
                 const statusClass = result.is_merged ? 'status-merged' : 'status-not-merged';
                 const statusText = result.is_merged ? '<i class="fas fa-check-circle"></i> 已合并' : '<i class="fas fa-times-circle"></i> 未合并';
                 const mergeDate = result.merge_date || '-';
@@ -1416,6 +1262,7 @@
                 
                 rowsHtml += `
                     <tr data-status="${result.is_merged ? 'merged' : 'not-merged'}">
+                        <td style="text-align: center; color: #64748b; font-weight: 500;">${index + 1}</td>
                         <td><strong title="${result.branch_name}">${result.branch_name}</strong></td>
                         <td class="${statusClass}">${statusText}</td>
                         <td>${mergeDate}</td>
@@ -1459,14 +1306,8 @@
                 tableBody.innerHTML = generateResultRows(filteredResults);
                 tableBody.style.opacity = '1';
                 
-                // 显示过滤结果统计
-                const resultCount = filteredResults.length;
-                const totalCount = window.currentResults.length;
-                if (resultCount !== totalCount) {
-                    showFilterMessage(`显示 ${resultCount} 条结果，共 ${totalCount} 条`);
-                } else {
-                    hideFilterMessage();
-                }
+                // 隐藏过滤消息
+                hideFilterMessage();
             }, 150);
         }
         

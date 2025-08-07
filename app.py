@@ -339,8 +339,16 @@ class GitBranchChecker:
                         branch_name = ref.name.replace(f"{remote.name}/", "")
                         all_branches.append(branch_name)
             
-            # 过滤包含关键字的分支
-            keyword_branches = [b for b in set(all_branches) if keyword in b]
+            # 处理多个关键字（用逗号分隔）
+            keywords = [k.strip() for k in keyword.split(',') if k.strip()]
+            
+            # 过滤包含任一关键字的分支
+            keyword_branches = []
+            for branch in set(all_branches):
+                for kw in keywords:
+                    if kw in branch:
+                        keyword_branches.append(branch)
+                        break  # 找到一个匹配的关键字就跳出
             
             for branch_name in keyword_branches:
                 try:
